@@ -1,0 +1,6 @@
+path: /home/a110101162/ai_cup/yolo_dataset
+train: images/train
+val: images/val
+
+nc: 1
+names: ["aortic_valve"]

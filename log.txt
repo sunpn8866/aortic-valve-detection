@@ -1,0 +1,70 @@
+(dino-yolo) a110101162@c007:~$ python /home/a110101162/ai_cup/src/create_yolo_data.py \
+    --src-root "/home/a110101162/ai_cup/dataset" \
+    --dst-root "/home/a110101162/ai_cup/yolo_dataset" \
+    --val-ratio 0.2
+Found 50 patients: ['patient0001', 'patient0002', 'patient0003', 'patient0004', 'patient0005'] ...
+Number of training patients: 40, validation patients: 10
+Example validation patients: ['patient0005', 'patient0010', 'patient0012', 'patient0017', 'patient0020']
+✅ Train images: 13573, labeled slices: 2239
+✅ Val   images: 3290, labeled slices: 548
+✅ YOLO dataset config written to: /home/a110101162/ai_cup/yolo_dataset/aortic_valve.yaml
+
+python train_yolov12_dino.py \
+    --data /home/a110101162/ai_cup/yolo_dataset/aortic_valve.yaml \
+    --yolo-size s \
+    --dinoversion 3 \
+    --dino-variant vitb16 \
+    --integration single \
+    --epochs 300 \
+    --batch-size 32 \
+    --imgsz 512 \
+    --optimizer AdamW \
+    --lr 0.005 \
+    --cos-lr \
+    --patience 100 \
+    --mosaic 0.0 \
+    --mixup 0.0 \
+    --degrees 5 \
+    --translate 0.1 \
+    --scale 0.1 \
+    --fliplr 0.5 \
+    --amp \
+    --workers 8 \
+    --device 0 \
+    --name av_dinov3_vitb16_single
+
+python src/training/train_multi_gpu.py \
+  --config /home/a110101162/ai_cup/ultralytics/cfg/models/v12/yolov12l-dino3-vitl16-dualp0p3.yaml \
+  --data /home/a110101162/ai_cup/yolo_dataset/aortic_valve.yaml \
+  --device 0,1   # adjust to your GPUs
+
+python src/training/train.py \
+  --config configs/yolov12_dino_base.yaml \
+  --data /home/a110101162/ai_cup/yolo_dataset/aortic_valve.yaml \
+  --device 0
+
+python src/training/train_multi_gpu.py \
+  --config configs/yolov12_dino_base.yaml \
+  --data /home/a110101162/ai_cup/yolo_dataset/aortic_valve.yaml \
+  --device 0,1
+
+
+Speed: 0.2ms preprocess, 36.6ms inference, 0.0ms loss, 0.2ms postprocess per image
+Results saved to experiments/yolov12_dino_baseline11
+Test dataset not found - only validation and training results available
+
+================================================================================ 
+📊 TRAINING COMPLETE - COMPREHENSIVE mAP RESULTS SUMMARY
+================================================================================ 
+
+🏆 BEST MODEL - VALIDATION DATA:
+  mAP@0.5      : 0.9680
+  mAP@0.75     : 0.0000
+  mAP@0.5:0.95 : 0.6961
+
+🧪 BEST MODEL - TEST DATA: Not available (no test dataset)
+
+📈 LAST TRAINING CHECKPOINT: Not available
+================================================================================ 
+
+(dino-yolo) a110101162@c007:~/ai_cup$          

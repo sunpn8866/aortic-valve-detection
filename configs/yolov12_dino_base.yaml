@@ -1,0 +1,172 @@
+# YOLOv12 + DINOv3 Configuration for AICUP 2025 Aortic Valve Detection
+# Uses DINO3Backbone via ultralytics/cfg/models/v12.
+
+# Model Configuration
+model:
+  name: yolov12_dino3_s  # Logical name for tracking
+  yaml: /home/a110101162/ai_cup/configs/yolov12m-dualp0p3-radiodino-b16.yaml # DINO-YOLO backbone
+  weights: null  # Optional: path to pretrained DINO-YOLO weights (.pt)
+  pretrained: False  # Set True only if weights is provided
+  num_classes: 1
+  class_names: [aortic_valve]
+
+  # Architecture tweaks (kept from YOLOv11 settings)
+  backbone:
+    depth_multiple: 1.0
+    width_multiple: 1.0
+
+# Path to YOLO-format dataset yaml (override with --data if needed)
+data_yaml: yolo_dataset/aortic_valve.yaml
+
+# Training Configuration
+train:
+  epochs: 300
+  batch_size: 16
+  accumulate: 4
+  patience: 50
+
+  optimizer:
+    type: AdamW
+    lr: 0.001
+    weight_decay: 0.0005
+    betas: [0.9, 0.999]
+
+  scheduler:
+    type: CosineAnnealingWarmRestarts
+    T_0: 50
+    T_mult: 2
+    eta_min: 1e-6
+    warmup_epochs: 10
+    warmup_bias_lr: 0.1
+    warmup_momentum: 0.8
+
+  loss:
+    box_loss:
+      type: DistributionFocalLoss
+      alpha: 0.25
+      gamma: 2.0
+      weight: 7.5
+
+    cls_loss:
+      type: FocalLoss
+      alpha: 0.25
+      gamma: 2.0
+      weight: 0.5
+
+    obj_loss:
+      type: BCEWithLogitsLoss
+      pos_weight: 1.0
+      weight: 1.0
+
+  amp:
+    enabled: True
+    dtype: bfloat16
+    grad_scaler: True
+
+# Data Configuration
+data:
+  train_path: data/train
+  val_path: data/val
+  test_path: data/test
+
+  img_size: 512
+  multiscale: True
+  scale_range: [0.5, 1.5]
+
+  preprocessing:
+    window_center: 50
+    window_width: 350
+    normalize: True
+    clip_range: [-1000, 1000]
+
+  augmentation:
+    RandomFlip:
+      prob: 0.5
+      spatial_axis: [0, 1]
+    RandomRotate90:
+      prob: 0.5
+      spatial_axis: [0, 1]
+    RandomAffine:
+      prob: 0.3
+      rotate_range: [-0.26, 0.26]
+      translate_range: [0.1, 0.1]
+      scale_range: [0.9, 1.1]
+    RandomGaussianNoise:
+      prob: 0.3
+      mean: 0.0
+      std: 0.1
+    RandomGaussianSmooth:
+      prob: 0.2
+      sigma: [0.5, 1.5]
+    RandomIntensityShift:
+      prob: 0.3
+      offset: 0.1
+    RandomBiasField:
+      prob: 0.2
+      degree: 3
+    RandomGhosting:
+      prob: 0.1
+      intensity: 0.5
+
+  mosaic: 0.5
+  mixup: 0.2
+  copy_paste: 0.3
+
+# Validation Configuration
+val:
+  batch_size: 16
+  interval: 1
+  save_best: True
+  metrics:
+    - mAP@0.5
+    - mAP@0.5:0.95
+    - precision
+    - recall
+    - f1_score
+
+# Inference Configuration
+inference:
+  conf_threshold: 0.25
+  iou_threshold: 0.45
+  max_detections: 100
+  tta:
+    enabled: True
+    scales: [0.9, 1.0, 1.1]
+    flips: [None, 'horizontal', 'vertical']
+
+# Hardware Configuration
+hardware:
+  device: cuda
+  workers: 8
+  pin_memory: True
+  distributed:
+    backend: nccl
+    find_unused_parameters: False
+  gradient_checkpointing: True
+  channels_last: True
+
+# Experiment Configuration
+experiment:
+  project: AICUP2025_AorticValve
+  name: yolov12_dino_baseline
+  save_dir: experiments/
+  checkpoint:
+    save_period: 10
+    save_best: True
+    save_last: True
+    max_kept: 5
+  logging:
+    interval: 10
+    use_wandb: True
+    use_tensorboard: True
+    log_images: True
+    log_gradients: False
+
+# Post-processing
+postprocess:
+  nms:
+    type: soft_nms
+    sigma: 0.5
+    threshold: 0.001
+  bbox_refinement: True
+  score_calibration: True

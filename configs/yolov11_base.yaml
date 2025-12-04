@@ -1,0 +1,201 @@
+# YOLOv11 Configuration for AICUP 2025 Aortic Valve Detection
+
+# Model Configuration
+model:
+  name: yolov11x  # Options: yolov11n, yolov11s, yolov11m, yolov11l, yolov11x
+  pretrained: True
+  num_classes: 1  # Aortic valve only
+  
+  # Architecture modifications for medical imaging
+  backbone:
+    depth_multiple: 1.0
+    width_multiple: 1.25
+    
+  head:
+    anchors: 3
+    anchor_generator:
+      sizes: [[10, 13], [16, 30], [33, 23]]  # Small object optimized
+      aspect_ratios: [[0.5, 1.0, 2.0]]
+
+# Training Configuration
+train:
+  epochs: 300
+  batch_size: 16  # Per GPU
+  accumulate: 4  # Gradient accumulation steps
+  
+  # Optimizer
+  optimizer:
+    type: AdamW
+    lr: 0.001
+    weight_decay: 0.0005
+    betas: [0.9, 0.999]
+  
+  # Learning Rate Scheduler
+  scheduler:
+    type: CosineAnnealingWarmRestarts
+    T_0: 50
+    T_mult: 2
+    eta_min: 1e-6
+    warmup_epochs: 10
+    warmup_bias_lr: 0.1
+    warmup_momentum: 0.8
+  
+  # Loss Functions
+  loss:
+    box_loss:
+      type: DistributionFocalLoss  # Better for small objects
+      alpha: 0.25
+      gamma: 2.0
+      weight: 7.5
+    
+    cls_loss:
+      type: FocalLoss
+      alpha: 0.25
+      gamma: 2.0
+      weight: 0.5
+    
+    obj_loss:
+      type: BCEWithLogitsLoss
+      pos_weight: 1.0
+      weight: 1.0
+  
+  # Mixed Precision Training
+  amp:
+    enabled: True
+    dtype: bfloat16  # Better for RTX 6000 Ada
+    grad_scaler: True
+
+# Data Configuration
+data:
+  train_path: data/train
+  val_path: data/val
+  test_path: data/test
+  
+  # Image Processing
+  img_size: 640  # Base resolution
+  multiscale: True
+  scale_range: [0.5, 1.5]
+  
+  # Medical Image Preprocessing
+  preprocessing:
+    window_center: 50  # HU units for soft tissue
+    window_width: 350
+    normalize: True
+    clip_range: [-1000, 1000]  # HU range
+  
+  # Data Augmentation (MONAI-based)
+  augmentation:
+    # Spatial Transforms
+    RandomFlip:
+      prob: 0.5
+      spatial_axis: [0, 1]
+    
+    RandomRotate90:
+      prob: 0.5
+      spatial_axis: [0, 1]
+    
+    RandomAffine:
+      prob: 0.3
+      rotate_range: [-0.26, 0.26]  # ±15 degrees
+      translate_range: [0.1, 0.1]
+      scale_range: [0.9, 1.1]
+    
+    # Intensity Transforms
+    RandomGaussianNoise:
+      prob: 0.3
+      mean: 0.0
+      std: 0.1
+    
+    RandomGaussianSmooth:
+      prob: 0.2
+      sigma: [0.5, 1.5]
+    
+    RandomIntensityShift:
+      prob: 0.3
+      offset: 0.1
+    
+    # Medical-specific
+    RandomBiasField:
+      prob: 0.2
+      degree: 3
+    
+    RandomGhosting:
+      prob: 0.1
+      intensity: 0.5
+  
+  # Mosaic and MixUp
+  mosaic: 0.5  # Probability
+  mixup: 0.2
+  copy_paste: 0.3  # For small object augmentation
+
+# Validation Configuration
+val:
+  batch_size: 32
+  interval: 1  # Validate every N epochs
+  save_best: True
+  metrics:
+    - mAP@0.5
+    - mAP@0.5:0.95
+    - precision
+    - recall
+    - f1_score
+
+# Inference Configuration
+inference:
+  conf_threshold: 0.25
+  iou_threshold: 0.45
+  max_detections: 100
+  
+  # Test Time Augmentation
+  tta:
+    enabled: True
+    scales: [0.9, 1.0, 1.1]
+    flips: [None, 'horizontal', 'vertical']
+
+# Hardware Configuration
+hardware:
+  device: cuda
+  workers: 8
+  pin_memory: True
+  
+  # Multi-GPU Settings
+  distributed:
+    backend: nccl
+    find_unused_parameters: False
+  
+  # Memory Optimization
+  gradient_checkpointing: True
+  channels_last: True  # Memory format optimization
+
+# Experiment Configuration
+experiment:
+  project: AICUP2025_AorticValve
+  name: yolov11_baseline
+  save_dir: experiments/
+  
+  # Checkpointing
+  checkpoint:
+    save_period: 10
+    save_best: True
+    save_last: True
+    max_kept: 5
+  
+  # Logging
+  logging:
+    interval: 10
+    use_wandb: True
+    use_tensorboard: True
+    log_images: True
+    log_gradients: False
+
+# Post-processing
+postprocess:
+  # Non-Maximum Suppression
+  nms:
+    type: soft_nms  # Better for overlapping objects
+    sigma: 0.5
+    threshold: 0.001
+  
+  # Refinement
+  bbox_refinement: True
+  score_calibration: True
