@@ -1,0 +1,23 @@
+# Core Deep Learning
+torch>=2.0.0
+torchvision>=0.15.0
+
+# YOLO Framework (modified version with DINO integration)
+# ultralytics>=8.0.0  # Use local modified version instead
+
+# Image Processing
+opencv-python>=4.8.0
+Pillow>=10.0.0
+albumentations>=1.3.0
+
+# Data Processing
+numpy>=1.24.0
+pandas>=2.0.0
+PyYAML>=6.0
+
+# Utilities
+tqdm>=4.65.0
+
+# Optional: Experiment Tracking
+# wandb>=0.15.0
+# tensorboard>=2.13.0
