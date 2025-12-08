@@ -121,3 +121,6 @@ logs/
 tmp/
 temp/
 *.tmp
+final_scroce.md
+.gitignore
+AICUP競賽報告.md
