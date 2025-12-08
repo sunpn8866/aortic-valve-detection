@@ -1,4 +1,8 @@
-path: /home/a110101162/ai_cup/yolo_dataset
+# Aortic Valve Detection Dataset
+# Path can be absolute or relative to this yaml file
+# For local use: path: .
+# For server use: path: /path/to/yolo_dataset
+path: .
 train: images/train
 val: images/val
 
